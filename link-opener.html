@@ -104,6 +104,7 @@
     </div>
 
 <!-- In your hosted link-opener.html, replace the entire <script>...</script> block -->
+<!-- In your hosted link-opener.html, replace the entire <script>...</script> block -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const groupNameEl = document.getElementById('group-name');
@@ -118,65 +119,64 @@
             const decodedJson = atob(encodedData);
             const data = JSON.parse(decodedJson);
 
-            // Check if the data is an array (multi-group) or an object (single-group)
-            if (Array.isArray(data)) {
-                // --- Multi-group rendering ---
+            // Handle both array (multi-group) and object (single-group, legacy) formats
+            const groupsToShow = Array.isArray(data) ? data : [data];
+
+            if (groupsToShow.length === 1) {
+                // Render a single group
+                const group = groupsToShow[0];
+                if (!group.name) throw new Error('Invalid data format.');
+                
+                groupNameEl.textContent = group.name;
+                document.title = group.name + " | Tab Group";
+
+                const tabs = group.tabs || group.urls.map(url => ({ url: url, title: url }));
+                
+                if (tabs.length > 0) {
+                    tabs.forEach(tab => {
+                        const li = document.createElement('li'), a = document.createElement('a');
+                        a.href = tab.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+                        a.textContent = tab.title; // Use the title for the link text
+                        li.appendChild(a); linksListEl.appendChild(li);
+                    });
+                } else { linksListEl.innerHTML = "<li>This group is empty.</li>"; }
+
+            } else {
+                // Render multiple groups
                 groupNameEl.textContent = "Shared Tab Groups";
                 document.title = "Shared Tab Groups | Tab Vault";
-                linksListEl.innerHTML = ''; // Clear the list to append multiple sections
+                linksListEl.innerHTML = ''; // Clear list for appending sections
 
-                data.forEach(group => {
-                    if (!group.name || !Array.isArray(group.urls)) return; // Skip invalid groups in the array
+                groupsToShow.forEach(group => {
+                    if (!group.name) return; // Skip invalid entries
 
                     const groupHeader = document.createElement('h2');
                     groupHeader.textContent = group.name;
-                    groupHeader.style.fontSize = '1.2rem';
-                    groupHeader.style.marginTop = '2rem';
-                    groupHeader.style.borderBottom = '1px solid rgba(0,0,0,0.08)';
-                    groupHeader.style.paddingBottom = '0.5rem';
+                    groupHeader.style.cssText = 'font-size: 1.2rem; margin-top: 2rem; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 0.5rem;';
 
                     const individualList = document.createElement('ul');
-                    individualList.style.listStyle = 'none';
-                    individualList.style.padding = '0';
-                    individualList.style.marginTop = '1rem';
+                    individualList.style.cssText = 'list-style: none; padding: 0; margin-top: 1rem;';
                     
-                    if (group.urls.length > 0) {
-                        group.urls.forEach(url => {
+                    const tabs = group.tabs || group.urls.map(url => ({ url: url, title: url }));
+                    
+                    if (tabs.length > 0) {
+                        tabs.forEach(tab => {
                             const li = document.createElement('li');
                             li.style.marginBottom = '0.8rem';
                             const a = document.createElement('a');
-                            a.href = url;
+                            a.href = tab.url;
                             a.target = '_blank';
                             a.rel = 'noopener noreferrer';
-                            a.textContent = url;
+                            a.textContent = tab.title; // Use the title
                             li.appendChild(a);
                             individualList.appendChild(li);
                         });
                     } else {
-                        const li = document.createElement('li');
-                        li.textContent = "This group is empty.";
-                        individualList.appendChild(li);
+                        individualList.innerHTML = "<li>This group is empty.</li>";
                     }
                     linksListEl.appendChild(groupHeader);
                     linksListEl.appendChild(individualList);
                 });
-
-            } else if (typeof data === 'object' && data !== null) {
-                // --- Original single-group rendering (for backward compatibility) ---
-                if (!data.name || !Array.isArray(data.urls)) throw new Error('Invalid data format.');
-                
-                groupNameEl.textContent = data.name;
-                document.title = data.name + " | Tab Group";
-                
-                if (data.urls.length > 0) {
-                    data.urls.forEach(url => {
-                        const li = document.createElement('li'), a = document.createElement('a');
-                        a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = url;
-                        li.appendChild(a); linksListEl.appendChild(li);
-                    });
-                } else { linksListEl.innerHTML = "<li>This group is empty.</li>"; }
-            } else {
-                throw new Error('Data format is not a recognized object or array.');
             }
         } catch (e) {
             console.error('Failed to load tab group:', e);
